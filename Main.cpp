@@ -7,199 +7,290 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <map>
+#include <vector>
 
 // Ekran boyutları
 const GLuint WIDTH = 800, HEIGHT = 600;
 
-// Karakter bilgilerini tutan yapı
-struct Character {
-    GLuint TextureID;   // Karakterin texture ID'si
-    GLuint Width;       // Karakterin genişliği
-    GLuint Height;      // Karakterin yüksekliği
-    GLint BearingX;     // Karakterin sol/üst ofseti
-    GLint BearingY;     // Karakterin sol/üst ofseti
-    GLuint Advance;     // Sonraki karaktere geçiş mesafesi
-};
+// Grid Sistemi için Sınıf
+class GridSystem {
+public:
+    struct Character {
+        GLuint TextureID;   // Karakterin texture ID'si
+        GLuint Width;       // Karakterin genişliği
+        GLuint Height;      // Karakterin yüksekliği
+        GLint BearingX;     // Karakterin sol/üst ofseti
+        GLint BearingY;     // Karakterin sol/üst ofseti
+        GLuint Advance;     // Sonraki karaktere geçiş mesafesi
+    };
 
-// Karakterleri tutan harita
-std::map<GLchar, Character> Characters;
+    struct GridCell {
+        float x, y;         // Hücre koordinatları
+        float width, height; // Hücre boyutları
+        std::string text;   // Hücredeki metin
+        bool active;        // Hücre aktif mi?
 
-// Shader kaynak kodları
-const char* vertexShaderSource = R"(
-    #version 330 core
-    layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
-    out vec2 TexCoords;
+        GridCell(float x, float y, float width, float height)
+            : x(x), y(y), width(width), height(height), active(false) {}
+    };
 
-    uniform mat4 projection;
+    std::map<GLchar, Character> Characters; // Karakterleri tutan harita
+    std::vector<GridCell> cells;  // Tüm hücreleri tutan vektör
+    GLuint shaderProgram; // Shader programı
+    int rows, cols;       // Satır ve sütun sayısı
+    float cellWidth, cellHeight;  // Her bir hücrenin boyutları
 
-    void main() {
-        gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
-        TexCoords = vertex.zw;
-    }
-)";
+    GridSystem(int rows, int cols, std::string fontPath)
+        : rows(rows), cols(cols) {
+        cellWidth = WIDTH / cols;
+        cellHeight = HEIGHT / rows;
 
-const char* fragmentShaderSource = R"(
-    #version 330 core
-    in vec2 TexCoords;
-    out vec4 color;
+        // Shader programını oluştur
+        shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
 
-    uniform sampler2D text;
-    uniform vec3 textColor;
+        // FreeType başlat ve karakterleri yükle
+        loadCharacters(fontPath);
 
-    void main() {
-        vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
-        color = vec4(textColor, 1.0) * sampled;
-    }
-)";
+        // Hücreleri oluştur
+        createCells();
 
-// Shader programı oluşturma fonksiyonu
-GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource) {
-    // Vertex Shader
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexSource, NULL);
-    glCompileShader(vertexShader);
-
-    GLint success;
-    GLchar infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        // Projeksiyon matrisi ayarla
+        glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(WIDTH), 0.0f, static_cast<GLfloat>(HEIGHT));
+        glUseProgram(shaderProgram);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     }
 
-    // Fragment Shader
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
+    // Shader kaynak kodları
+    const char* vertexShaderSource = R"(
+        #version 330 core
+        layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
+        out vec2 TexCoords;
 
-    // Shader Program
-    GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
+        uniform mat4 projection;
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+        void main() {
+            gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
+            TexCoords = vertex.zw;
+        }
+    )";
 
-    return shaderProgram;
-}
+    const char* fragmentShaderSource = R"(
+        #version 330 core
+        in vec2 TexCoords;
+        out vec4 color;
 
-// FreeType ile karakterleri yükleme fonksiyonu
-void loadCharacters(FT_Face& face) {
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Byte hizalama kısıtlamasını devre dışı bırak
+        uniform sampler2D text;
+        uniform vec3 textColor;
 
-    for (GLubyte c = 0; c < 128; c++) {
-        // Karakter glifi yükle
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
-            continue;
+        void main() {
+            vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
+            color = vec4(textColor, 1.0) * sampled;
+        }
+    )";
+
+    // Shader programı oluşturma fonksiyonu
+    GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource) {
+        GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertexShader, 1, &vertexSource, NULL);
+        glCompileShader(vertexShader);
+
+        GLint success;
+        GLchar infoLog[512];
+        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+            std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
         }
 
-        // Texture oluştur
-        GLuint texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            face->glyph->bitmap.buffer
-        );
+        GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
+        glCompileShader(fragmentShader);
+        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+            std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+        }
 
-        // Texture seçenekleri ayarla
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GLuint shaderProgram = glCreateProgram();
+        glAttachShader(shaderProgram, vertexShader);
+        glAttachShader(shaderProgram, fragmentShader);
+        glLinkProgram(shaderProgram);
+        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+            std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+        }
 
-        // Karakter bilgilerini sakla
-        Character character = {
-            texture,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
-            face->glyph->bitmap_left,
-            face->glyph->bitmap_top,
-            face->glyph->advance.x
-        };
-        Characters.insert(std::pair<GLchar, Character>(c, character));
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+
+        return shaderProgram;
     }
-}
 
-// Metni render etme fonksiyonu
-void renderText(GLuint shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
-    // Render durumu ayarla
-    glUseProgram(shader);
-    glUniform3f(glGetUniformLocation(shader, "textColor"), color.x, color.y, color.z);
-    glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(0);
+    // FreeType ile karakterleri yükleme fonksiyonu
+    void loadCharacters(std::string fontPath) {
+        FT_Library ft;
+        if (FT_Init_FreeType(&ft)) {
+            std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+            return;
+        }
 
-    // VBO ayarları
-    GLuint VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+        FT_Face face;
+        if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
+            std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+            return;
+        }
 
-    // Tüm karakterler arasında gez
-    std::string::const_iterator c;
-    for (c = text.begin(); c != text.end(); c++) {
-        Character ch = Characters[*c];
+        FT_Set_Pixel_Sizes(face, 0, 48);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        GLfloat xpos = x + ch.BearingX * scale;
-        GLfloat ypos = y - (ch.Height - ch.BearingY) * scale;
+        for (GLubyte c = 0; c < 128; c++) {
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+                std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
 
-        GLfloat w = ch.Width * scale;
-        GLfloat h = ch.Height * scale;
-        // Her karakter için VBO güncelle
-        GLfloat vertices[6][4] = {
-            { xpos,     ypos + h,   0.0, 0.0 },
-            { xpos,     ypos,       0.0, 1.0 },
-            { xpos + w, ypos,       1.0, 1.0 },
+            GLuint texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face->glyph->bitmap.buffer
+            );
 
-            { xpos,     ypos + h,   0.0, 0.0 },
-            { xpos + w, ypos,       1.0, 1.0 },
-            { xpos + w, ypos + h,   1.0, 0.0 }
-        };
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        // Glif texture'ı render et
-        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-        // VBO belleğini güncelle
+            Character character = {
+                texture,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                face->glyph->bitmap_left,
+                face->glyph->bitmap_top,
+                face->glyph->advance.x
+            };
+            Characters.insert(std::pair<GLchar, Character>(c, character));
+        }
+
+        FT_Done_Face(face);
+        FT_Done_FreeType(ft);
+    }
+
+    // Hücreleri oluşturma fonksiyonu
+    void createCells() {
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                float x = j * cellWidth;
+                float y = i * cellHeight;
+                cells.push_back(GridCell(x, y, cellWidth, cellHeight));
+            }
+        }
+    }
+
+    // Tüm hücreleri çizme fonksiyonu
+    void drawGrid() {
+        for (auto& cell : cells) {
+            drawCell(cell);
+        }
+    }
+
+    // Hücreyi çizme fonksiyonu
+    void drawCell(GridCell& cell) {
+        glUseProgram(shaderProgram);
+        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f);
+        renderText(cell.text, cell.x + 10, cell.y + cell.height - 30, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f));
+    }
+
+    // Metni render etme fonksiyonu
+    void renderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
+        glUseProgram(shaderProgram);
+        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), color.x, color.y, color.z);
+        glActiveTexture(GL_TEXTURE0);
+        glBindVertexArray(0);
+
+        GLuint VBO, VAO;
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glBindVertexArray(VAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
 
-        // Quad render et
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        // Sonraki glife geçiş
-        x += (ch.Advance >> 6) * scale;
+        std::string::const_iterator c;
+        for (c = text.begin(); c != text.end(); c++) {
+            Character ch = Characters[*c];
+
+            GLfloat xpos = x + ch.BearingX * scale;
+            GLfloat ypos = y - (ch.Height - ch.BearingY) * scale;
+
+            GLfloat w = ch.Width * scale;
+            GLfloat h = ch.Height * scale;
+
+            GLfloat vertices[6][4] = {
+                { xpos,     ypos + h,   0.0, 0.0 },
+                { xpos,     ypos,       0.0, 1.0 },
+                { xpos + w, ypos,       1.0, 1.0 },
+
+                { xpos,     ypos + h,   0.0, 0.0 },
+                { xpos + w, ypos,       1.0, 1.0 },
+                { xpos + w, ypos + h,   1.0, 0.0 }
+            };
+
+            glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            x += (ch.Advance >> 6) * scale;
+        }
+        glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        glDeleteBuffers(1, &VBO);
+        glDeleteVertexArrays(1, &VAO);
     }
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Temizlik
-    glDeleteBuffers(1, &VBO);
-    glDeleteVertexArrays(1, &VAO);
-}
+    // Tıklanan hücreyi kontrol etme fonksiyonu
+    void checkClick(float mouseX, float mouseY) {
+        for (auto& cell : cells) {
+            if (isCellClicked(cell, mouseX, mouseY)) {
+                cell.active = true;
+                cell.text = "Clicked!";
+            }
+            else {
+                cell.active = false;
+            }
+        }
+    }
+
+    // Hücreye tıklanıp tıklanmadığını kontrol etme fonksiyonu
+    bool isCellClicked(GridCell& cell, float mouseX, float mouseY) {
+        return (mouseX >= cell.x && mouseX <= cell.x + cell.width && mouseY >= cell.y && mouseY <= cell.y + cell.height);
+    }
+
+    // Girdi işleme fonksiyonu
+    void handleInput(int key) {
+        for (auto& cell : cells) {
+            if (cell.active) {
+                if (key == GLFW_KEY_ENTER) {
+                    cell.text = "Enter Pressed";
+                }
+            }
+        }
+    }
+};
 
 int main() {
-    // GLFW ve GLEW başlat
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return -1;
@@ -208,7 +299,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "FreeType Text Rendering", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Grid System", NULL, NULL);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -222,58 +313,45 @@ int main() {
         return -1;
     }
 
-    // OpenGL ayarları
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Shader programını derle ve oluştur
-    GLuint shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+    // Grid sistemi oluştur ve font dosyasını yükle
+    GridSystem grid(4, 4, "C:/Company/GroundControl/SkyLink/orange_juice2.ttf");
 
-    // FreeType kütüphanesini başlat
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
-        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
-        return -1;
+    // Hücreleri düzenle ve metin ekle
+    if (!grid.cells.empty()) {
+        grid.cells[0].text = "Cell 0";        // 1. Hücreye metin ekle
+        grid.cells[1].text = "Cell 1";        // 2. Hücreye metin ekle
+        grid.cells[5].text = "Hello World!";  // 6. Hücreye metin ekle
+        grid.cells[10].text = "OpenGL Grid";  // 11. Hücreye metin ekle
+        grid.cells[15].text = "GLFW Example"; // 16. Hücreye metin ekle
     }
 
-    // Font dosyasını yükle
-    FT_Face face;
-    if (FT_New_Face(ft, "C:/Company/GroundControl/SkyLink/orange_juice2.ttf", 0, &face)) {
-        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
-        return -1;
-    }
-
-    // Font boyutunu ayarla
-    FT_Set_Pixel_Sizes(face, 0, 48);
-
-    // Karakterleri yükle
-    loadCharacters(face);
-
-    // FreeType temizle
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-
-    // Projeksiyon matrisi oluştur
-    glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(WIDTH), 0.0f, static_cast<GLfloat>(HEIGHT));
-    glUseProgram(shaderProgram);
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-    // Render döngüsü
     while (!glfwWindowShouldClose(window)) {
-        // Render
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Metni render et
-        renderText(shaderProgram, "BAMMM", WIDTH / 2 - 100, HEIGHT / 2, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f)); // Kırmızı renk
+        // Grid çizimi
+        grid.drawGrid();
 
-        // Buffer'ları değiştir ve olayları dinle
+        // Girdi işleme
+        if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+            grid.handleInput(GLFW_KEY_ENTER);
+        }
+
+        // Fare tıklaması kontrolü
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            grid.checkClick(static_cast<float>(xpos), HEIGHT - static_cast<float>(ypos));
+        }
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     glfwTerminate();
     return 0;
-} 
-      
+}
