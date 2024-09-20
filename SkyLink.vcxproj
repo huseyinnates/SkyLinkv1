@@ -136,7 +136,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CellStrategy.cpp" />
+    <ClCompile Include="DataProvider.cpp" />
+    <ClCompile Include="GridCell.cpp" />
+    <ClCompile Include="GridSystem.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="Subject.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CellStrategy.h" />
+    <ClInclude Include="DataProvider.h" />
+    <ClInclude Include="GridCell.h" />
+    <ClInclude Include="GridSystem.h" />
+    <ClInclude Include="Observer.h" />
+    <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Subject.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

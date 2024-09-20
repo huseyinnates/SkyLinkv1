@@ -13,16 +13,57 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Header Files\Grid">
-      <UniqueIdentifier>{b0b93108-a7e6-415e-bc49-eff3e6a4b03b}</UniqueIdentifier>
+    <Filter Include="Header Files\SkyLink">
+      <UniqueIdentifier>{15d9e979-aeb3-4cb6-a39d-f502c0e8dcc0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Grid">
-      <UniqueIdentifier>{9cd27f1b-9b15-4115-b40a-3b74911db8b4}</UniqueIdentifier>
+    <Filter Include="Source Files\SkyLink">
+      <UniqueIdentifier>{aadb9857-5b97-4e33-a30e-bf3d22a99128}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Subject.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+    <ClCompile Include="CellStrategy.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+    <ClCompile Include="GridCell.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+    <ClCompile Include="DataProvider.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+    <ClCompile Include="GridSystem.cpp">
+      <Filter>Source Files\SkyLink</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Observer.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="Subject.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="CellStrategy.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="GridCell.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="DataProvider.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
+    <ClInclude Include="GridSystem.h">
+      <Filter>Header Files\SkyLink</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
