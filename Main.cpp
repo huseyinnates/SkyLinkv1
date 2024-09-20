@@ -7,6 +7,12 @@
 #include <iostream>
 #include <random>
 
+// Dear ImGui başlık dosyalarını ekleyin
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_freetype.h"
+
 using namespace SkyLink; // Düzeltme: 'SkyLink' yerine 'SkyLine' olmalı
 
 // **Global değişkenler**
@@ -123,6 +129,33 @@ int main() {
         std::cout << "Hücre 0,0 tıklandı!" << std::endl;
         });
 
+    // **Dear ImGui Başlatma**
+    // ImGui Context oluştur
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    // **Özel Yazı Tipini Yükleme**
+    ImFont* customFont = io.Fonts->AddFontFromFileTTF("C:/Company/GroundControl/SkyLink/orange_juice2.ttf", 16.0f);
+    if (!customFont) {
+        std::cout << "Özel yazı tipi yüklenemedi!" << std::endl;
+    }
+    else {
+        io.FontDefault = customFont; // Özel yazı tipini varsayılan olarak ayarla
+    }
+
+    // **Buton Renklerini Turuncuya Ayarlama**
+    ImGui::StyleColorsDark(); // Mevcut stilinizi koruyabilirsiniz
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.Colors[ImGuiCol_Button] = ImVec4(1.0f, 0.5f, 0.0f, 1.0f); // Turuncu
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(1.0f, 0.6f, 0.1f, 1.0f); // Açık turuncu
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(1.0f, 0.4f, 0.0f, 1.0f); // Koyu turuncu
+
+    // Platform/Renderer backend'lerini başlat
+    const char* glsl_version = "#version 330";
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
     // Ana döngü
     while (!glfwWindowShouldClose(window)) {
         // Girdi işlemleri
@@ -139,16 +172,56 @@ int main() {
         // Güncelleme
         grid.update();
 
+        // **ImGui Frame Başlatma**
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // **ImGui Arayüzünü Oluşturma**
+        // Ekranın üst kısmına sabit bir ImGui penceresi ekleyelim
+        ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+        ImGui::SetWindowPos(ImVec2(0, 0));
+        ImGui::SetWindowSize(ImVec2(static_cast<float>(WIDTH), 50)); // Pencere genişliği ve yüksekliği
+        ImGui::Text("Toolbar");
+
+        // Örnek Düğmeler
+        if (ImGui::Button("Button 1")) {
+            std::cout << "Button 1 clicked!" << std::endl;
+            // Buraya Button 1'in yapacağı işlemleri ekleyin
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Button 2")) {
+            std::cout << "Button 2 clicked!" << std::endl;
+            // Buraya Button 2'nin yapacağı işlemleri ekleyin
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Button 3")) {
+            std::cout << "Button 3 clicked!" << std::endl;
+            // Buraya Button 3'ün yapacağı işlemleri ekleyin
+        }
+
+        ImGui::End();
+
+        // **ImGui Rendering**
+        ImGui::Render();
+
         // Çizim
         renderer->clear();
         grid.draw(*renderer);
+
+        // ImGui'yi OpenGL ile render et
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // GLFW buffer swap ve event polling
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // Temizlik
+    // **Temizlik İşlemleri**
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwDestroyWindow(window);
     glfwTerminate();
 

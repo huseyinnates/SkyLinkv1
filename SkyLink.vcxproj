@@ -108,9 +108,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>GLEW_STATIC;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLEW_STATIC;_DEBUG;_CONSOLE;IMGUI_IMPL_OPENGL_LOADER_GLEW;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Includes;C:\Company\GroundControl\SkyLink\imgui\backends;C:\Company\GroundControl\SkyLink\imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,6 +140,14 @@
     <ClCompile Include="DataProvider.cpp" />
     <ClCompile Include="GridCell.cpp" />
     <ClCompile Include="GridSystem.cpp" />
+    <ClCompile Include="imgui.cpp" />
+    <ClCompile Include="imgui_demo.cpp" />
+    <ClCompile Include="imgui_draw.cpp" />
+    <ClCompile Include="imgui_freetype.cpp" />
+    <ClCompile Include="imgui_impl_glfw.cpp" />
+    <ClCompile Include="imgui_impl_opengl3.cpp" />
+    <ClCompile Include="imgui_tables.cpp" />
+    <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Subject.cpp" />
@@ -149,6 +157,16 @@
     <ClInclude Include="DataProvider.h" />
     <ClInclude Include="GridCell.h" />
     <ClInclude Include="GridSystem.h" />
+    <ClInclude Include="imconfig.h" />
+    <ClInclude Include="imgui.h" />
+    <ClInclude Include="imgui_freetype.h" />
+    <ClInclude Include="imgui_impl_glfw.h" />
+    <ClInclude Include="imgui_impl_opengl3.h" />
+    <ClInclude Include="imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="imgui_internal.h" />
+    <ClInclude Include="imstb_rectpack.h" />
+    <ClInclude Include="imstb_textedit.h" />
+    <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="Observer.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Subject.h" />
