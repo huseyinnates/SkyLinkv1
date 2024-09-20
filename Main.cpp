@@ -8,9 +8,10 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <algorithm>
 
 // Ekran boyutları
-const GLuint WIDTH = 800, HEIGHT = 600;
+const GLuint WIDTH = 1920, HEIGHT = 1080;
 
 // Grid Sistemi için Sınıf
 class GridSystem {
@@ -36,8 +37,11 @@ public:
 
     std::map<GLchar, Character> Characters; // Karakterleri tutan harita
     std::vector<GridCell> cells;  // Tüm hücreleri tutan vektör
-    GLuint shaderProgram; // Shader programı
-    int rows, cols;       // Satır ve sütun sayısı
+    GLuint textShaderProgram;     // Metin için shader programı
+    GLuint triangleShaderProgram; // Üçgen için shader programı
+    GLuint triangleVAO, triangleVBO; // Üçgen için VAO ve VBO
+    glm::mat4 projection;          // Projeksiyon matrisi
+    int rows, cols;               // Satır ve sütun sayısı
     float cellWidth, cellHeight;  // Her bir hücrenin boyutları
 
     GridSystem(int rows, int cols, std::string fontPath)
@@ -45,8 +49,9 @@ public:
         cellWidth = WIDTH / cols;
         cellHeight = HEIGHT / rows;
 
-        // Shader programını oluştur
-        shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+        // Shader programlarını oluştur
+        textShaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+        triangleShaderProgram = createShaderProgram(triangleVertexShaderSource, triangleFragmentShaderSource);
 
         // FreeType başlat ve karakterleri yükle
         loadCharacters(fontPath);
@@ -55,12 +60,26 @@ public:
         createCells();
 
         // Projeksiyon matrisi ayarla
-        glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(WIDTH), 0.0f, static_cast<GLfloat>(HEIGHT));
-        glUseProgram(shaderProgram);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        projection = glm::ortho(0.0f, static_cast<GLfloat>(WIDTH), 0.0f, static_cast<GLfloat>(HEIGHT));
+
+        // Metin shader programı için projeksiyon matrisini ayarla
+        glUseProgram(textShaderProgram);
+        glUniformMatrix4fv(glGetUniformLocation(textShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Üçgen için VAO ve VBO oluştur
+        glGenVertexArrays(1, &triangleVAO);
+        glGenBuffers(1, &triangleVBO);
     }
 
-    // Shader kaynak kodları
+    ~GridSystem() {
+        // Kaynakları serbest bırak
+        glDeleteVertexArrays(1, &triangleVAO);
+        glDeleteBuffers(1, &triangleVBO);
+        glDeleteProgram(textShaderProgram);
+        glDeleteProgram(triangleShaderProgram);
+    }
+
+    // Metin için shader kaynak kodları
     const char* vertexShaderSource = R"(
         #version 330 core
         layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
@@ -85,6 +104,29 @@ public:
         void main() {
             vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
             color = vec4(textColor, 1.0) * sampled;
+        }
+    )";
+
+    // Üçgen için shader kaynak kodları
+    const char* triangleVertexShaderSource = R"(
+        #version 330 core
+        layout(location = 0) in vec2 aPos;
+
+        uniform mat4 projection;
+
+        void main() {
+            gl_Position = projection * vec4(aPos, 0.0, 1.0);
+        }
+    )";
+
+    const char* triangleFragmentShaderSource = R"(
+        #version 330 core
+        out vec4 FragColor;
+
+        uniform vec3 triangleColor;
+
+        void main() {
+            FragColor = vec4(triangleColor, 1.0);
         }
     )";
 
@@ -205,17 +247,63 @@ public:
 
     // Hücreyi çizme fonksiyonu
     void drawCell(GridCell& cell) {
-        glUseProgram(shaderProgram);
-        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f);
-        renderText(cell.text, cell.x + 10, cell.y + cell.height - 30, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f));
+        // Hücreye üçgen çiz
+        drawTriangle(cell);
+
+        // Hücrede metin varsa çiz
+        if (!cell.text.empty()) {
+            renderText(cell.text, cell.x + 10, cell.y + cell.height - 30, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f));
+        }
+    }
+
+    // Hücreye üçgen çizme fonksiyonu
+    void drawTriangle(GridCell& cell) {
+        // Üçgenin merkezini ve boyutunu hesapla
+        GLfloat x = cell.x;
+        GLfloat y = cell.y;
+        GLfloat w = cell.width;
+        GLfloat h = cell.height;
+
+        GLfloat centerX = x + w / 2.0f;
+        GLfloat centerY = y + h / 2.0f;
+
+        GLfloat size = std::min(w, h) * 0.4f; // Üçgenin boyutu
+
+        GLfloat vertices[] = {
+            centerX,         centerY + size,  // Üst nokta
+            centerX - size,  centerY - size,  // Sol alt
+            centerX + size,  centerY - size   // Sağ alt
+        };
+
+        glUseProgram(triangleShaderProgram);
+
+        // Projeksiyon matrisini gönder
+        GLint projLoc = glGetUniformLocation(triangleShaderProgram, "projection");
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Üçgenin rengini ayarla
+        GLint colorLoc = glGetUniformLocation(triangleShaderProgram, "triangleColor");
+        glUniform3f(colorLoc, 1.0f, 0.0f, 0.0f); // Kırmızı renk
+
+        glBindVertexArray(triangleVAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, triangleVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void*)0);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
     // Metni render etme fonksiyonu
     void renderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
-        glUseProgram(shaderProgram);
-        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), color.x, color.y, color.z);
+        glUseProgram(textShaderProgram);
+        glUniform3f(glGetUniformLocation(textShaderProgram, "textColor"), color.x, color.y, color.z);
         glActiveTexture(GL_TEXTURE0);
-        glBindVertexArray(0);
 
         GLuint VBO, VAO;
         glGenVertexArrays(1, &VAO);
