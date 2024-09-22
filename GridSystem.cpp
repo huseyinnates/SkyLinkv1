@@ -8,7 +8,7 @@ namespace SkyLink {
     GridSystem::GridSystem(int rows, int cols)
         : rows(rows), cols(cols) {
         cellWidth = WIDTH / cols;
-        cellHeight = HEIGHT / rows;
+        cellHeight = (HEIGHT- TOOLBAR_HEIGHT) / rows;
         createCells();
     }
 

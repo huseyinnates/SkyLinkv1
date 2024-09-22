@@ -1,5 +1,6 @@
 #ifndef SKYLINE_RENDERER_H
 #define SKYLINE_RENDERER_H
+#define TOOLBAR_HEIGHT 20
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
@@ -8,7 +9,7 @@
 
 namespace SkyLink {
 
-    const GLuint WIDTH = 800, HEIGHT = 600;
+    const GLuint WIDTH = 1920, HEIGHT = 1080;
 
     class Renderer {
     public:
