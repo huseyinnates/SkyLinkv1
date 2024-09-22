@@ -147,7 +147,8 @@ namespace SkyLink {
 
                 // Find which cell was clicked
                 for (auto& cell : gridSystem->cells) {
-                    if (cell->containsPoint(static_cast<float>(xpos), static_cast<float>(ypos)) && cell->onMouseCallback) {
+                    if (cell->containsPoint(static_cast<float>(xpos), static_cast<float>(ypos)) && cell->on
+                        ) {
                         cell->onMouseCallback();
                     }
                 }

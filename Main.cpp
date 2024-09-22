@@ -14,22 +14,22 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_freetype.h"
-// Yeni eklenen başlık dosyaları
+// Newly added header files
 #include "Mesh.h"
 #include "Shader.h"
-#include "ModelLoader.h" 
+#include "ModelLoader.h"
 #include "Camera.h"
 
-
-using namespace SkyLink; // Corrected namespace from 'SkyLink' to 'SkyLine'
+using namespace SkyLink;
 using namespace SkyLink::Model;
 using namespace glm;
-// **Global variables**
+
+// **Global Variables**
 GridSystem* gridSystem = nullptr;
 Renderer* renderer = nullptr;
 
-// Yeni global değişkenler
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f),glm::vec3(0.0f, 1.0f, 0.0f),-90.0f, 0.0f); 
+// New global variables
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
 float lastX = WIDTH / 2.0f;
 float lastY = HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -37,6 +37,7 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 Mesh mesh;
 Shader* modelShader = nullptr;
+
 // **Application States**
 enum class ScreenState {
     Monitoring,
@@ -48,67 +49,102 @@ enum class ScreenState {
 ScreenState currentScreen = ScreenState::Monitoring;
 ScreenState previousScreen = currentScreen;
 
-// **Shader kaynak kodları**
-const char* vertexShaderSource = R"(
-    // Vertex Shader kodunuz (3D model için)
+const GLchar* simpleFragmentShaderSource = R"glsl(
     #version 330 core
-    layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec3 aNormal;
-
-    out vec3 FragPos;
-    out vec3 Normal;
-
-    uniform mat4 model;
-    uniform mat4 view;
-    uniform mat4 projection;
+    in vec3 vertexColor;
+    out vec4 color;
 
     void main()
     {
-        FragPos = vec3(model * vec4(aPos, 1.0));
-        Normal = mat3(transpose(inverse(model))) * aNormal;
-        gl_Position = projection * view * vec4(FragPos, 1.0);
+        color = vec4(vertexColor, 1.0);
     }
+)glsl";
+const GLchar* simpleVertexShaderSource = R"glsl(
+    #version 330 core
+    layout(location = 0) in vec3 position;
+    layout(location = 1) in vec3 color;
+
+    out vec3 vertexColor;
+
+    void main()
+    {
+        gl_Position = vec4(position, 1.0);
+        vertexColor = color;
+    }
+)glsl";
+// **Shader Source Codes**
+const char* vertexShaderSource = R"(
+// Vertex Shader for 3D model
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+
+out vec3 FragPos;
+out vec3 Normal;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = mat3(transpose(inverse(model))) * aNormal;
+    gl_Position = projection * view * vec4(FragPos, 1.0);
+}
 )";
 
 const char* fragmentShaderSource = R"(
-    // Fragment Shader kodunuz (3D model için)
-    #version 330 core
-    out vec4 FragColor;
+// Fragment Shader
+#version 330 core
+out vec4 FragColor;
 
-    in vec3 FragPos;
-    in vec3 Normal;
+in vec3 FragPos;
+in vec3 Normal;
 
-    uniform vec3 lightPos;
-    uniform vec3 viewPos;
-    uniform vec3 lightColor;
-    uniform vec3 objectColor;
+#define NR_LIGHTS 4
 
-    void main()
+struct Light {
+    vec3 position;
+    vec3 color;
+};
+
+uniform vec3 viewPos;
+uniform Light lights[NR_LIGHTS];
+uniform vec3 objectColor;
+
+void main()
+{
+    vec3 norm = normalize(Normal);
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 result = vec3(0.0);
+
+    for(int i = 0; i < NR_LIGHTS; i++)
     {
         // Ambient
         float ambientStrength = 0.1;
-        vec3 ambient = ambientStrength * lightColor;
+        vec3 ambient = ambientStrength * lights[i].color;
 
-        // Diffuse 
-        vec3 norm = normalize(Normal);
-        vec3 lightDir = normalize(lightPos - FragPos);
+        // Diffuse
+        vec3 lightDir = normalize(lights[i].position - FragPos);
         float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
+        vec3 diffuse = diff * lights[i].color;
 
         // Specular
         float specularStrength = 0.5;
-        vec3 viewDir = normalize(viewPos - FragPos);
         vec3 reflectDir = reflect(-lightDir, norm);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-        vec3 specular = specularStrength * spec * lightColor;
+        vec3 specular = specularStrength * spec * lights[i].color;
 
-        vec3 result = (ambient + diffuse + specular) * objectColor;
-        FragColor = vec4(result, 1.0);
+        result += (ambient + diffuse + specular);
     }
+
+    result *= objectColor;
+    FragColor = vec4(result, 1.0);
+}
 )";
 
-// **Shader compilation functions**
-// Function to compile a shader
+// **Shader Compilation Functions**
 GLuint compileShader(GLenum type, const GLchar* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -126,7 +162,6 @@ GLuint compileShader(GLenum type, const GLchar* source) {
     return shader;
 }
 
-// Function to create shader program
 GLuint createShaderProgram(const GLchar* vertexSource, const GLchar* fragmentSource) {
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
@@ -153,7 +188,7 @@ GLuint createShaderProgram(const GLchar* vertexSource, const GLchar* fragmentSou
     return shaderProgram;
 }
 
-// **Drawing functions**
+// **Drawing Functions**
 void drawMonitoringScreen(Renderer& renderer) {
     gridSystem->draw(renderer);
 }
@@ -207,19 +242,19 @@ void drawMissionControlScreen(GLuint shaderProgram) {
 }
 
 void drawModelScreen(GLuint shaderProgram) {
-    // 3D model çizimi
+    // 3D model drawing
     glEnable(GL_DEPTH_TEST);
 
-    // Shader kullan
+    // Use shader
     modelShader->use();
 
-    // Uniform değişkenleri ayarla
+    // Set uniform variables
     modelShader->setVec3("lightPos", glm::vec3(1.2f, 1.0f, 2.0f));
     modelShader->setVec3("viewPos", camera.position);
     modelShader->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
     modelShader->setVec3("objectColor", mesh.diffuseColor);
 
-    // Dönüşümler
+    // Transformations
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = camera.getViewMatrix();
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
@@ -229,7 +264,7 @@ void drawModelScreen(GLuint shaderProgram) {
     modelShader->setMat4("view", view);
     modelShader->setMat4("projection", projection);
 
-    // Mesh çizimi
+    // Draw mesh
     mesh.draw();
 
     glDisable(GL_DEPTH_TEST);
@@ -240,7 +275,7 @@ void drawVisualScriptingScreen(GLuint shaderProgram) {
     drawColoredTriangle(shaderProgram, 0.0f, 0.0f, 1.0f);
 }
 
-// **Key callback function**
+// **Key Callback Function**
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         // If 'A' key is pressed
@@ -264,45 +299,51 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         }
     }
 }
+
 void processInput(GLFWwindow* window) {
-    // ESC tuşu ile pencereyi kapat
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+    static bool escPressedLastFrame = false;
+
+    bool escPressed = glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+
+    if (escPressed && !escPressedLastFrame) {
+        // ESC key was pressed
+        if (currentScreen == ScreenState::Model) {
+            currentScreen = ScreenState::Monitoring; // Switch to desired screen
+        }
+    }
+
+    escPressedLastFrame = escPressed;
 
     if (currentScreen == ScreenState::Model) {
-        // Kamera hareketi
-        float cameraSpeed = 2.5f * deltaTime; // Hız faktörü
+        // Camera movement
+        float cameraSpeed = 2.5f * deltaTime; // Speed factor
 
-        // İleri hareket
+        // Move forward
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            // Kamera pozisyonunu güncelle
             camera.distance -= cameraSpeed;
             if (camera.distance < 1.0f)
                 camera.distance = 1.0f;
         }
 
-        // Geri hareket
+        // Move backward
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
             camera.distance += cameraSpeed;
             if (camera.distance > 10.0f)
                 camera.distance = 10.0f;
         }
 
-        // Sol ve sağ hareket için kamera açısını güncelle
+        // Update camera yaw for left and right movement
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            camera.yaw -= cameraSpeed * 50.0f; // Açı değişimi
+            camera.yaw -= cameraSpeed * 50.0f; // Angle change
             camera.updateCameraVectors();
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            camera.yaw += cameraSpeed * 50.0f; // Açı değişimi
+            camera.yaw += cameraSpeed * 50.0f; // Angle change
             camera.updateCameraVectors();
         }
     }
 }
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    // Pencere boyutu değiştiğinde viewport'u güncelle
-    glViewport(0, 0, width, height);
-}
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (currentScreen != ScreenState::Model)
         return;
@@ -313,7 +354,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
         firstMouse = false;
     }
     float xoffset = static_cast<float>(xpos) - lastX;
-    float yoffset = lastY - static_cast<float>(ypos); // Y koordinatları ters
+    float yoffset = lastY - static_cast<float>(ypos); // Reversed since y-coordinates range from bottom to top
 
     lastX = static_cast<float>(xpos);
     lastY = static_cast<float>(ypos);
@@ -328,7 +369,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.processMouseScroll(static_cast<float>(yoffset));
 }
 
-// **Mouse button callback function**
+// **Mouse Button Callback Function**
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     if (action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT) {
         // Get mouse position
@@ -376,17 +417,52 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // Define light sources
+    std::vector<glm::vec3> lightPositions;
+    std::vector<glm::vec3> lightColors;
+
+    lightPositions.push_back(glm::vec3(3.0f, 3.0f, 3.0f));
+    lightColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f)); // Red
+
+    lightPositions.push_back(glm::vec3(-3.0f, 3.0f, 3.0f));
+    lightColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f)); // Green
+
+    lightPositions.push_back(glm::vec3(3.0f, -3.0f, 3.0f));
+    lightColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f)); // Blue
+
+    lightPositions.push_back(glm::vec3(-3.0f, -3.0f, -3.0f));
+    lightColors.push_back(glm::vec3(1.0f, 1.0f, 1.0f));
+
     // Create Shader Program
     GLuint shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
-    // Model Shader'ı oluşturma
-    modelShader = new Shader(vertexShaderSource, fragmentShaderSource);
+    GLuint simpleShaderProgram = createShaderProgram(simpleVertexShaderSource, simpleFragmentShaderSource);
 
-    // Model yükleme
+    // Create Model Shader
+    modelShader = new Shader(vertexShaderSource, fragmentShaderSource);
+    modelShader = new Shader(vertexShaderSource, fragmentShaderSource);
+    modelShader->use();
+
+    // Set camera position
+    modelShader->setVec3("viewPos", camera.position);
+
+    // Set object color
+    modelShader->setVec3("objectColor", mesh.diffuseColor);
+
+    // Send light sources to shader
+    for (int i = 0; i < lightPositions.size(); i++)
+    {
+        std::string number = std::to_string(i);
+        modelShader->setVec3("lights[" + number + "].position", lightPositions[i]);
+        modelShader->setVec3("lights[" + number + "].color", lightColors[i]);
+    }
+
+    // Load model
     ModelLoader loader;
     if (!loader.loadModel("C:/Company/GroundControl/rocket.fbx", mesh)) {
         std::cout << "Failed to load model!" << std::endl;
         return -1;
     }
+
     // Create Renderer object after GLEW initialization
     Renderer renderObj;
     renderer = &renderObj;
@@ -408,11 +484,13 @@ int main() {
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(0, 100);
 
-    // **Set GLFW callback functions**
+    // **Set GLFW Callback Functions**
     glfwSetKeyCallback(window, keyCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
-    // **Assign callback functions to some cells as examples**
+    // **Assign Callback Functions to Some Cells as Examples**
 
     // Assign key callback to cell (e.g., 'A' key)
     grid.getCell(0, 0)->setKeyCallback(GLFW_KEY_A, []() {
@@ -429,6 +507,7 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
     // **Load Custom Font**
     ImFont* customFont = io.Fonts->AddFontFromFileTTF("C:/Company/GroundControl/SkyLink/orange_juice2.ttf", 16.0f);
@@ -451,122 +530,114 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // **Set up ImGui style for the toolbar**
+    // **Set up ImGui Style for the Toolbar**
     // Remove window background
     style.Colors[ImGuiCol_WindowBg] = ImVec4(1.0f, 0.4f, 0.0f, 1.0f);
 
     // Main loop
-   // Ana döngü
     while (!glfwWindowShouldClose(window)) {
-        // Zaman hesaplamaları
+        // Time calculations
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Kullanıcı girişlerini işleme
+        // Process user input
         processInput(window);
 
-        // Ekran durum değişikliğini kontrol et
+        // Check for screen state change
         if (currentScreen != previousScreen) {
             if (currentScreen == ScreenState::Model) {
-                // Model ekranına geçildiğinde
-                glfwSetCursorPosCallback(window, mouse_callback);
-                glfwSetScrollCallback(window, scroll_callback);
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                // When entering the Model screen
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable the cursor
+                firstMouse = true; // Reset the first mouse movement
             }
             else if (previousScreen == ScreenState::Model) {
-                // Model ekranından çıkıldığında
-                glfwSetCursorPosCallback(window, NULL);
-                glfwSetScrollCallback(window, NULL);
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-                firstMouse = true; // İlk mouse hareketini sıfırla
+                // When exiting the Model screen
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Re-enable the cursor
             }
             previousScreen = currentScreen;
         }
 
-        // Veri güncelleme
+        // Update data
         int randomData = distribution(generator);
         dataProvider.setData(randomData);
 
-        // Grid güncelleme
+        // Update grid
         grid.update();
 
-        // **ImGui Yeni Frame Başlat**
+        // **Start New ImGui Frame**
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // **Sabit Araç Çubuğu**
-        // Araç çubuğu penceresi ayarları
+        // **Fixed Toolbar**
         ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
-        // Araç çubuğu penceresini başlat
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(WIDTH), TOOLBAR_HEIGHT));
         ImGui::Begin("##Toolbar", nullptr, toolbarFlags);
 
-        // Butonları dikey olarak ortala
+        // Center buttons vertically
         ImGui::SetCursorPosY((TOOLBAR_HEIGHT - ImGui::GetFontSize()) / 2);
 
-        // Monitoring Butonu
+        // Monitoring Button
         if (ImGui::Button("Monitoring")) {
             currentScreen = ScreenState::Monitoring;
         }
         ImGui::SameLine();
 
-        // Mission Control Butonu
+        // Mission Control Button
         if (ImGui::Button("Mission Control")) {
             currentScreen = ScreenState::MissionControl;
         }
         ImGui::SameLine();
 
-        // Model Butonu
+        // Model Button
         if (ImGui::Button("Model")) {
             currentScreen = ScreenState::Model;
         }
         ImGui::SameLine();
 
-        // Visual Scripting Butonu
+        // Visual Scripting Button
         if (ImGui::Button("Visual Scripting")) {
             currentScreen = ScreenState::VisualScripting;
         }
 
-        ImGui::End(); // Araç çubuğu penceresini sonlandır
+        ImGui::End(); // End toolbar window
 
-        // ImGui render işlemi
+        // Render ImGui
         ImGui::Render();
 
-        // **Seçilen Ekrana Göre İçerik Render Etme**
-        // Ekranı temizle
+        // **Render Content Based on Selected Screen**
+        // Clear screen
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Ekran durumuna göre içerik çizimi
+        // Draw content based on screen state
         switch (currentScreen) {
         case ScreenState::Monitoring:
             drawMonitoringScreen(*renderer);
             break;
         case ScreenState::MissionControl:
-            drawMissionControlScreen(shaderProgram);
+            drawMissionControlScreen(simpleShaderProgram);
             break;
         case ScreenState::Model:
             drawModelScreen(shaderProgram);
             break;
         case ScreenState::VisualScripting:
-            drawVisualScriptingScreen(shaderProgram);
+            drawVisualScriptingScreen(simpleShaderProgram);
             break;
         }
 
-        // ImGui verilerini OpenGL ile render et
+        // Render ImGui data with OpenGL
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        // Bufferları değiştirme ve olayları çekme
+        // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
 
     // **Cleanup**
     glDeleteProgram(shaderProgram);
