@@ -25,9 +25,8 @@ namespace SkyLink {
 
             void processMouseMovement(float xoffset, float yoffset);
             void processMouseScroll(float yoffset);
-
-        private:
-            void updateCameraVectors();
+            void updateCameraVectors(); 
+            
         };
 
     } // namespace Model
