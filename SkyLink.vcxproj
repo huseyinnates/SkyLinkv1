@@ -139,6 +139,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CellStrategy.cpp" />
     <ClCompile Include="DataProvider.cpp" />
+    <ClCompile Include="GrapDemo.cpp" />
     <ClCompile Include="GridCell.cpp" />
     <ClCompile Include="GridSystem.cpp" />
     <ClCompile Include="imgui.cpp" />
