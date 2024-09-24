@@ -1,3 +1,4 @@
+/*
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <application.h>
 #include "utilities/builders.h"
@@ -557,9 +558,9 @@ struct Example:
 
         m_Links.push_back(Link(GetNextLinkId(), m_Nodes[14].Outputs[0].ID, m_Nodes[15].Inputs[0].ID));
 
-        m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
-        m_SaveIcon         = LoadTexture("data/ic_save_white_24dp.png");
-        m_RestoreIcon      = LoadTexture("data/ic_restore_white_24dp.png");
+        m_HeaderBackground = LoadTexture("C:/Company/GroundControl/SkyLinkv1/imgui_node/data/BlueprintBackground.png");
+        m_SaveIcon         = LoadTexture("C:/Company/GroundControl/SkyLinkv1/imgui_node/data/ic_save_white_24dp.png");
+        m_RestoreIcon      = LoadTexture("C:/Company/GroundControl/SkyLinkv1/imgui_node/data/ic_restore_white_24dp.png");
 
 
         //auto& io = ImGui::GetIO();
@@ -1741,30 +1742,6 @@ struct Example:
         ed::Resume();
     # endif
 
-
-    /*
-        cubic_bezier_t c;
-        c.p0 = pointf(100, 600);
-        c.p1 = pointf(300, 1200);
-        c.p2 = pointf(500, 100);
-        c.p3 = pointf(900, 600);
-
-        auto drawList = ImGui::GetWindowDrawList();
-        auto offset_radius = 15.0f;
-        auto acceptPoint = [drawList, offset_radius](const bezier_subdivide_result_t& r)
-        {
-            drawList->AddCircle(to_imvec(r.point), 4.0f, IM_COL32(255, 0, 255, 255));
-
-            auto nt = r.tangent.normalized();
-            nt = pointf(-nt.y, nt.x);
-
-            drawList->AddLine(to_imvec(r.point), to_imvec(r.point + nt * offset_radius), IM_COL32(255, 0, 0, 255), 1.0f);
-        };
-
-        drawList->AddBezierCurve(to_imvec(c.p0), to_imvec(c.p1), to_imvec(c.p2), to_imvec(c.p3), IM_COL32(255, 255, 255, 255), 1.0f);
-        cubic_bezier_subdivide(acceptPoint, c);
-    */
-
         ed::End();
 
         auto editorMin = ImGui::GetItemRectMin();
@@ -1824,7 +1801,7 @@ struct Example:
     bool                 m_ShowOrdinals = false;
 };
 
-int Main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     Example exampe("Blueprints", argc, argv);
 
@@ -1833,3 +1810,5 @@ int Main(int argc, char** argv)
 
     return 0;
 }
+
+*/
