@@ -1,5 +1,4 @@
-﻿// main.cpp
-
+﻿// main.cpp 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "Renderer.h"
@@ -510,7 +509,7 @@ int main() {
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
     // **Load Custom Font**
-    ImFont* customFont = io.Fonts->AddFontFromFileTTF("C:/Company/GroundControl/SkyLink/orange_juice2.ttf", 16.0f);
+    ImFont* customFont = io.Fonts->AddFontFromFileTTF("C:/Company/GroundControl/SkyLinkv1/orange_juice2.ttf", 16.0f);
     if (!customFont) {
         std::cout << "Failed to load custom font!" << std::endl;
     }
@@ -649,4 +648,4 @@ int main() {
     glfwTerminate();
 
     return 0;
-}
+} 

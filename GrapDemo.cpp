@@ -1,8 +1,6 @@
-/*
-
 
 // main.cpp
-
+/*
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -545,7 +543,7 @@ int main()
 
     // Load font
     FT_Face face;
-    std::string fontPath = "C:/Company/GroundControl/SkyLink/orange_juice2.ttf"; // Font path relative to executable
+    std::string fontPath = "C:/Company/GroundControl/SkyLinkv1/orange_juice2.ttf"; // Font path relative to executable
     if (FT_New_Face(ft, fontPath.c_str(), 0, &face))
     {
         std::cerr << "Failed to load font at path: " << fontPath << std::endl;

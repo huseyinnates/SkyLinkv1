@@ -77,7 +77,7 @@ namespace SkyLink {
         glGenBuffers(1, &triangleVBO);
 
         // FreeType ile karakterleri yükle
-        loadCharacters("C:/Company/GroundControl/SkyLink/orange_juice2.ttf");
+        loadCharacters("C:/Company/GroundControl/SkyLinkv1/orange_juice2.ttf");
     }
 
     Renderer::~Renderer() {

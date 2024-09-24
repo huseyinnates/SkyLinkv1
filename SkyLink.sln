@@ -5,8 +5,6 @@ VisualStudioVersion = 17.11.35303.130
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkyLink", "SkyLink.vcxproj", "{C64292AD-FCEA-4144-A1E8-5FE5F34653FB}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArduinoCommunication", "..\ArduinoCommunication\ArduinoCommunication.vcxproj", "{478C95F2-A92E-4B21-A129-A02D3DD7A904}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM = Debug|ARM
@@ -35,22 +33,6 @@ Global
 		{C64292AD-FCEA-4144-A1E8-5FE5F34653FB}.Release|x64.Build.0 = Release|x64
 		{C64292AD-FCEA-4144-A1E8-5FE5F34653FB}.Release|x86.ActiveCfg = Release|Win32
 		{C64292AD-FCEA-4144-A1E8-5FE5F34653FB}.Release|x86.Build.0 = Release|Win32
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|ARM.ActiveCfg = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|ARM.Build.0 = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|ARM64.ActiveCfg = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|ARM64.Build.0 = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|x64.ActiveCfg = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|x64.Build.0 = Debug|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|x86.ActiveCfg = Debug|Win32
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Debug|x86.Build.0 = Debug|Win32
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|ARM.ActiveCfg = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|ARM.Build.0 = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|ARM64.ActiveCfg = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|ARM64.Build.0 = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|x64.ActiveCfg = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|x64.Build.0 = Release|x64
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|x86.ActiveCfg = Release|Win32
-		{478C95F2-A92E-4B21-A129-A02D3DD7A904}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
