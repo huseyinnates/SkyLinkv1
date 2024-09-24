@@ -12,7 +12,6 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "imgui_freetype.h"
 // Newly added header files
 #include "Mesh.h"
 #include "Shader.h"
@@ -73,74 +72,74 @@ const GLchar* simpleVertexShaderSource = R"glsl(
 )glsl";
 // **Shader Source Codes**
 const char* vertexShaderSource = R"(
-// Vertex Shader for 3D model
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
+    // Vertex Shader for 3D model
+    #version 330 core
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec3 aNormal;
 
-out vec3 FragPos;
-out vec3 Normal;
+    out vec3 FragPos;
+    out vec3 Normal;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
 
-void main()
-{
-    FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = mat3(transpose(inverse(model))) * aNormal;
-    gl_Position = projection * view * vec4(FragPos, 1.0);
-}
+    void main()
+    {
+        FragPos = vec3(model * vec4(aPos, 1.0));
+        Normal = mat3(transpose(inverse(model))) * aNormal;
+        gl_Position = projection * view * vec4(FragPos, 1.0);
+    }
 )";
 
 const char* fragmentShaderSource = R"(
-// Fragment Shader
-#version 330 core
-out vec4 FragColor;
+    // Fragment Shader
+    #version 330 core
+    out vec4 FragColor;
 
-in vec3 FragPos;
-in vec3 Normal;
+    in vec3 FragPos;
+    in vec3 Normal;
 
-#define NR_LIGHTS 4
+    #define NR_LIGHTS 4
 
-struct Light {
-    vec3 position;
-    vec3 color;
-};
+    struct Light {
+        vec3 position;
+        vec3 color;
+    };
 
-uniform vec3 viewPos;
-uniform Light lights[NR_LIGHTS];
-uniform vec3 objectColor;
+    uniform vec3 viewPos;
+    uniform Light lights[NR_LIGHTS];
+    uniform vec3 objectColor;
 
-void main()
-{
-    vec3 norm = normalize(Normal);
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 result = vec3(0.0);
-
-    for(int i = 0; i < NR_LIGHTS; i++)
+    void main()
     {
-        // Ambient
-        float ambientStrength = 0.1;
-        vec3 ambient = ambientStrength * lights[i].color;
+        vec3 norm = normalize(Normal);
+        vec3 viewDir = normalize(viewPos - FragPos);
+        vec3 result = vec3(0.0);
 
-        // Diffuse
-        vec3 lightDir = normalize(lights[i].position - FragPos);
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diff * lights[i].color;
+        for(int i = 0; i < NR_LIGHTS; i++)
+        {
+            // Ambient
+            float ambientStrength = 0.1;
+            vec3 ambient = ambientStrength * lights[i].color;
 
-        // Specular
-        float specularStrength = 0.5;
-        vec3 reflectDir = reflect(-lightDir, norm);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-        vec3 specular = specularStrength * spec * lights[i].color;
+            // Diffuse
+            vec3 lightDir = normalize(lights[i].position - FragPos);
+            float diff = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = diff * lights[i].color;
 
-        result += (ambient + diffuse + specular);
+            // Specular
+            float specularStrength = 0.5;
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+            vec3 specular = specularStrength * spec * lights[i].color;
+
+            result += (ambient + diffuse + specular);
+        }
+
+        result *= objectColor;
+        FragColor = vec4(result, 1.0);
     }
-
-    result *= objectColor;
-    FragColor = vec4(result, 1.0);
-}
 )";
 
 // **Shader Compilation Functions**
@@ -438,7 +437,6 @@ int main() {
 
     // Create Model Shader
     modelShader = new Shader(vertexShaderSource, fragmentShaderSource);
-    modelShader = new Shader(vertexShaderSource, fragmentShaderSource);
     modelShader->use();
 
     // Set camera position
@@ -502,8 +500,6 @@ int main() {
         });
 
     // **Dear ImGui Initialization**
-    // Create ImGui Context
-    IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
@@ -640,6 +636,7 @@ int main() {
 
     // **Cleanup**
     glDeleteProgram(shaderProgram);
+    glDeleteProgram(simpleShaderProgram);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -648,4 +645,4 @@ int main() {
     glfwTerminate();
 
     return 0;
-} 
+}
